@@ -1,0 +1,13 @@
+.deploy_k8s:
+  stage: deploy
+  script:
+    - | 
+      [ -n "$CI_COMMIT_TAG" ] && sed -i "s#_image_#${CI_REGISTRY}${IMAGE_NAME_PRO}:$CI_COMMIT_TAG#g" ${DEPLOY_FILE} || sed -i "s#_image_#${CI_REGISTRY}${IMAGE_NAME_FAT}:$IMAGE_VERSION#g" ${DEPLOY_FILE}
+    - cat ${DEPLOY_FILE}
+    - kubectl apply -f ${DEPLOY_FILE} --kubeconfig=$KUBECONFIG
+  environment:
+    name: "${CI_PROJECT_NAME}"
+    url: "http://api.nq.lan/api/${CI_PROJECT_NAME}/swagger-ui.html"
+
+
+  

@@ -1,0 +1,17 @@
+## 构建镜像
+.docker_image:
+  stage: dockerimage
+  script:
+    - | 
+      if [ -n "$CI_COMMIT_TAG" ];then
+          docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWD  $CI_REGISTRY
+          docker build -t ${CI_REGISTRY}${IMAGE_NAME_PRO}:$CI_COMMIT_TAG -f ${DOCKER_FILE_PATH} .
+          docker push ${CI_REGISTRY}${IMAGE_NAME_PRO}:$CI_COMMIT_TAG
+          docker rmi ${CI_REGISTRY}${IMAGE_NAME_PRO}:$CI_COMMIT_TAG
+      else
+          docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWD  $CI_REGISTRY
+          docker build -t ${CI_REGISTRY}${IMAGE_NAME_FAT}:$IMAGE_VERSION -f ${DOCKER_FILE_PATH} .
+          docker push ${CI_REGISTRY}${IMAGE_NAME_FAT}:$IMAGE_VERSION 
+          docker rmi ${CI_REGISTRY}${IMAGE_NAME_FAT}:$IMAGE_VERSION 
+      fi
+ 

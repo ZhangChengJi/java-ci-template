@@ -1,0 +1,157 @@
+include:
+  - local: 'job/build.yml'
+  - local: 'job/test.yml'
+  - local: 'job/codeanalysis.yml'
+ # - local: 'job/merge_request.yml'
+  - local: 'job/docker_image.yml'
+  - local: 'job/deploy.yml'
+  - local: 'job/newmessage.yml'
+  - local: 'job/yaml_upgrade.yaml'
+variables:
+#   # 代码位置
+  # GIT_CLONE_PATH: $CI_PROJECT_DIR
+#  # 不让下代码
+  # GIT_CHECKOUT: "false"
+  # GIT_STRATEGY: clone
+#   # 代码maven build 位置
+#   MAVEN_OPS: "-Dmaven.repo.local=/home/gitlab-runner/ci-build-cache/maven  "
+#   # build 命令
+  BUILD_SHELL: "mvn clean package -Dmaven.test.skip=true" #-Dmaven.repo.local=/home/gitlab-runner/ci-build-cache/maven "
+#   ##测试命令
+  TEST_SHELL : 'mvn test' # --settings=./settings.xml
+#    ##单元测试报告                        
+#   JUNIT_REPORT_PATH: 'target/surefire-reports/TEST-*.xml'  
+  
+
+#   SONAR_IMAGE: "sonarsource/sonar-scanner-cli:latest"
+
+#   ## 代码扫描
+  SONAR_PROJECT_LANG: "JAVA"
+  SONAR_SOURCE_DIR : "src" 
+  SONAR_SERVER_URL: "http://192.168.1.244:30003" 
+  SONAR_SERVER_LOGIN: "ef79d2f1196f6b56d1c25f7e91f29c8660d14c15" 
+  SONAR_SCAN_ARGS: "-Dsonar.sources=${SONAR_SOURCE_DIR} 
+                   -Dsonar.java.binaries=target/classes 
+                   -Dsonar.java.test.binaries=target/test-classes 
+                   -Dsonar.java.surefire.report=target/surefire-reports "
+## 消息通知
+  DINGDING_NEW_MESSAGE_URL: "http://192.168.1.128:8091/working?"
+
+  ## 构建镜像
+  CI_REGISTRY: '222.173.29.165:31354'               #镜像仓库地址   
+  CI_REGISTRY_USER: 'admin'                               #仓库用户信息
+  CI_REGISTRY_PASSWD: 'djs@12316'                              #仓库用户密码
+  IMAGE_NAME_FAT: '/snapshot/${CI_PROJECT_NAME}'    #镜像名称
+  IMAGE_NAME_PRO: '/release/${CI_PROJECT_NAME}'    #镜像名称
+
+  DOCKER_FILE_PATH: "./Dockerfile" 
+  IMAGE_VERSION: '${CI_COMMIT_REF_NAME}-${CI_COMMIT_SHORT_SHA}'
+
+
+# ## 流水线控制
+workflow:
+  rules:
+    - if: $CI_COMMIT_TAG
+    # - if: $CI_MERGE_REQUEST_ID #如果是合并 流水线就运行 默认always
+    - if: $CI_PIPELINE_SOURCE == 'web' # 图像化界面触发可以执行
+    - if: $CI_COMMIT_BEFORE_SHA == "0000000000000000000000000000000000000000" # 40个0代表新建分支
+      when: never
+    - if: '$CI_COMMIT_REF_NAME =~ /^feature.*/ || $CI_COMMIT_REF_NAME == "develop"' #如果是feature/就进行执行
+      when: always
+    - when: never
+stages:
+  - build
+#  - test
+#  - codeanalysis
+#  - newmessage
+#  - mergerequest
+  - dockerimage
+  - upgrade
+  - deploy
+  
+
+# before_script:
+#   - export
+
+
+build:
+  extends: .build
+  variables:
+    GIT_CHECKOUT: "true"
+  rules:
+    - if: $CI_COMMIT_TAG
+    #- if: '$CI_COMMIT_REF_NAME =~ /^feature.*/ || $CI_COMMIT_REF_NAME == "develop"'
+    - if: $CI_COMMIT_REF_NAME == "develop"
+  cache:
+    paths:
+      - target/
+
+### 暂时关闭feature 分支流水线作业 sonarqube代码检查没有人使用所以不用开启了
+
+#test:
+#  extends: .test
+#  rules:
+#    - if: '$CI_COMMIT_REF_NAME =~ /^feature.*/'
+#  before_script:
+#    - ls
+#  cache:
+#    paths:
+#      - target/
+#
+
+
+#codeanalysis:
+#  stage: codeanalysis
+#  extends: .code_analysis
+#  rules:
+#    - if: '$CI_COMMIT_REF_NAME =~ /^feature.*/'
+#  cache:
+#    paths:
+#      - target/
+#    policy: pull
+#
+#newmessage:
+#  stage: newmessage
+#  extends: .new_message
+#  rules:
+#    - if: '$CI_COMMIT_REF_NAME =~ /^feature.*/'
+  
+# merge_request:
+#   stage: mergerequest
+#   rules:
+#     - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
+#       allow_failure: true
+#   extends: .merge_request
+#   cache:
+#     paths:
+#       - target/
+#     policy: pull
+
+dockerimage:
+  extends: .docker_image
+  rules:
+    - if: $CI_COMMIT_TAG
+    - if: '$CI_COMMIT_REF_NAME == "develop" || $CI_COMMIT_TAG '
+  cache:
+    paths:
+      - target/
+    policy: pull
+
+upgrade: 
+  extends: .yaml_upgrade
+  rules:
+    - if: $CI_COMMIT_TAG
+    - if: '$CI_COMMIT_REF_NAME == "develop" || $CI_COMMIT_TAG '
+
+deploy:
+  variables:
+    DEPLOY_FILE: 'deploy.yaml'
+    ENV_NAME: 'feature'
+    NAMESPACE: default
+  stage: deploy
+  extends: .deploy_k8s
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "develop"'
+      when: manual
+    - when: never
+

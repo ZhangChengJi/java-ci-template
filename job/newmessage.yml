@@ -1,0 +1,7 @@
+.new_message:
+  stage: newmessage
+  script:
+    - |
+      asd=`printf "%s\r" "$CI_COMMIT_TITLE"`;
+      echo $asd;
+      curl -i -X POST  -H "Content-Type:application/json;charset=UTF-8" -d "{\"ciProjectName\":\"${CI_PROJECT_NAME}\",\"ciCommitRefName\": \"${CI_COMMIT_REF_NAME}\",\"ciCommitTitle\":\"${CI_COMMIT_TITLE}\",\"ciCommitSha\": \"${CI_COMMIT_SHA}\",\"ciProjectPath\":\"${CI_PROJECT_PATH}\"}" http://192.168.1.243:8234/working

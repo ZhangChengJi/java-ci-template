@@ -1,0 +1,8 @@
+.yaml_upgrade:
+  stage: upgrade
+  script: |
+      git clone http://380702562%40qq.com:12345678@192.168.1.162/k8s-yaml/manifests.git;
+      ls;
+      cd manifests/$CI_PROJECT_NAMESPACE/pro/$CI_PROJECT_NAME && kustomize edit set image java=${CI_REGISTRY}${IMAGE_NAME_FAT}:$IMAGE_VERSION;
+      git commit -am 'Publish new version' && git push || echo 'no changes';
+      kustomize build;
